@@ -26,7 +26,7 @@ from urllib3.util.retry import Retry
 # 1️⃣ TEMEL AYARLAR
 # ======================================================
 
-SITE_URL = "https://friendlyrhapsody.com"  # ← Burayı değiştir
+SITE_URL = "hYOUR_SITE  # ← Burayı değiştir
 SAVE_DIR = "obsidian_posts"
 
 POSTS_API = f"{SITE_URL}/wp-json/wp/v2/posts"
