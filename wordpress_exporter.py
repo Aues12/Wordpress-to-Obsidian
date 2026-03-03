@@ -9,15 +9,18 @@ Bu script:
 Notlar:
 - requests.Session + Retry kullanılarak daha dayanıklı ağ katmanı sağlanmıştır.
 - YAML frontmatter güvenli şekilde PyYAML ile üretilir.
+
+Yeni:
+- --newest N argümanı ile en yeni N postu (date DESC) çekilebilir.
 """
 
 import os
 import re
+import argparse
 import requests
 import yaml
 import html
-from urllib.parse import urlparse, parse_qs
-from markdownify import markdownify 
+from markdownify import markdownify
 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -69,6 +72,7 @@ session = create_session()
 
 
 def fetch_all(url, params=None):
+    """Tüm sayfaları dolaşarak sonuçları çeker."""
     results = []
     params = params or {}
 
@@ -76,7 +80,7 @@ def fetch_all(url, params=None):
     page = 1
 
     while True:
-        query = {**params, "per_page": 100, "page": page}
+        query = {**params, "per_page": 20, "page": page}
         response = session.get(url, params=query, timeout=30)
 
         try:
@@ -109,17 +113,76 @@ def fetch_all(url, params=None):
     return results
 
 
+def fetch_newest(url, newest: int):
+    """En yeni (date DESC) N postu çeker.
+
+    newest <= 0 ise boş liste döndürür.
+    """
+    if newest <= 0:
+        return []
+
+    results = []
+    page = 1
+
+    per_page = 20
+
+    # WP REST API sıralama parametreleri
+
+    while len(results) < newest:
+        params = {
+            "per_page": per_page,
+            "page": page,
+            "orderby": "date",
+            "order": "desc",
+        }
+        query = params
+        response = session.get(url, params=query, timeout=30)
+
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            raise requests.HTTPError(
+                f"HTTP hata: {response.status_code} | url={url} | page={page} | body={response.text[:300]}"
+            ) from e
+
+        data = response.json()
+        if not data:
+            break
+
+        results.extend(data)
+        page += 1
+
+    return results[:newest]
+
+
 def clean_filename(name):
-    return re.sub(r"[\\/:*?\"<>|]", "-", name).strip()
+    return re.sub(r"[\/:*?\"<>|]", "-", name).strip()
 
 
 # ======================================================
 # 4️⃣ ANA İŞLEM
 # ======================================================
 
+
 def main():
-    print("Yazılar çekiliyor...")
-    posts = fetch_all(POSTS_API)
+      
+    parser = argparse.ArgumentParser(description="WordPress → Obsidian Migrator")
+    parser.add_argument(
+        "--newest",
+        type=int,
+        default=0,
+        metavar="N",
+        help="En yeni N postu çek (date DESC). Varsayılan: tüm postlar.",
+    )
+
+    args = parser.parse_args()
+
+    if args.newest > 0:
+        print(f"En yeni {args.newest} yazılar çekiliyor (date DESC)...")
+        posts = fetch_newest(POSTS_API, newest=args.newest)
+    else:
+        print("Yazılar çekiliyor...")
+        posts = fetch_all(POSTS_API)
 
     print("Kategoriler çekiliyor...")
     categories = fetch_all(CATEGORIES_API)
@@ -135,8 +198,7 @@ def main():
         canonical = post.get("link")
 
         category_names = [
-            category_map.get(cid, f"cat_{cid}")
-            for cid in post.get("categories", [])
+            category_map.get(cid, f"cat_{cid}") for cid in post.get("categories", [])
         ]
 
         content_html = post["content"]["rendered"]
@@ -154,9 +216,6 @@ def main():
         if category_names:
             metadata["categories"] = category_names
 
-        # categories ve tags aynıysa sadece categories yaz
-        # İstersen burada ayrı tag mantığı ekleyebilirsin
-        
         frontmatter_yaml = yaml.safe_dump(
             metadata,
             allow_unicode=True,
@@ -168,11 +227,10 @@ def main():
         with open(filename, "w", encoding="utf-8") as f:
             f.write("---\n")
             f.write(frontmatter_yaml)
-            f.write("---\n\n")
+            f.write("---\n")
             f.write(content_md)
 
     print("✅ Tamamlandı! Obsidian bağlantı ağı oluşturuldu.")
-
 
 
 # ======================================================
