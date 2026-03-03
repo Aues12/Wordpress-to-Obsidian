@@ -1,5 +1,5 @@
 """
-WordPress → Obsidian Migrator
+WordPress-to-Obsidian Migrator
 --------------------------------
 Bu script:
 - WordPress yazılarını çeker
@@ -29,7 +29,7 @@ from urllib3.util.retry import Retry
 # 1️⃣ TEMEL AYARLAR
 # ======================================================
 
-SITE_URL = "YOUR_SITE"  # ← Burayı değiştir
+SITE_URL = "https://friendlyrhapsody.com"  # ← Burayı değiştir
 SAVE_DIR = "obsidian_posts"
 
 POSTS_API = f"{SITE_URL}/wp-json/wp/v2/posts"
@@ -113,12 +113,13 @@ def fetch_all(url, params=None):
     return results
 
 
-def fetch_newest(url, newest: int):
+def fetch(url, number: int, sort_by: str = "newest"):
     """En yeni (date DESC) N postu çeker.
 
     newest <= 0 ise boş liste döndürür.
     """
-    if newest <= 0:
+
+    if number <= 0:
         return []
 
     results = []
@@ -126,14 +127,18 @@ def fetch_newest(url, newest: int):
 
     per_page = 20
 
-    # WP REST API sıralama parametreleri
+    if sort_by == "newest":
+        order = "desc"
+    elif sort_by == "oldest":
+        order = "asc"
 
-    while len(results) < newest:
+    while len(results) < number:
+        # WP REST API  parametreleri
         params = {
             "per_page": per_page,
             "page": page,
             "orderby": "date",
-            "order": "desc",
+            "order": order,
         }
         query = params
         response = session.get(url, params=query, timeout=30)
@@ -152,7 +157,8 @@ def fetch_newest(url, newest: int):
         results.extend(data)
         page += 1
 
-    return results[:newest]
+    return results[:number]
+    
 
 
 def clean_filename(name):
@@ -175,11 +181,23 @@ def main():
         help="En yeni N postu çek (date DESC). Varsayılan: tüm postlar.",
     )
 
+    parser.add_argument(
+        "--oldest",
+        type=int,
+        default=0,
+        metavar="N",
+        help="En eski N postu çek (date ASC). Varsayılan: tüm postlar.",
+    )
+
     args = parser.parse_args()
 
     if args.newest > 0:
         print(f"En yeni {args.newest} yazılar çekiliyor (date DESC)...")
-        posts = fetch_newest(POSTS_API, newest=args.newest)
+        posts = fetch(POSTS_API, number=args.newest, sort_by="newest")
+    elif args.oldest > 0:
+        print(f"En eski {args.oldest} yazılar çekiliyor (date ASC)...")
+        posts = fetch(POSTS_API, number=args.oldest, sort_by="oldest")
+
     else:
         print("Yazılar çekiliyor...")
         posts = fetch_all(POSTS_API)
