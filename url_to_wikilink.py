@@ -46,7 +46,7 @@ import yaml
 # CONFIG
 # ======================================================
 
-SITE_URL = "https://friendlyrhapsody.com"
+SITE_URL = "YOUR_SITE"  # ← Burayı değiştir
 VAULT_PATH = Path("/Users/eminaliertenu/Documents/Obsidian Vault")
 
 MAKE_BACKUPS = False
