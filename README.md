@@ -40,7 +40,7 @@ This command exports the 50 newest posts.
 
 ---
 
-## 2) Text-processor
+## 2) Text-processor (url to wikilink)
 
 I also use URL links a lot in my writings. These almost always refer to a link of another blog post. I wanted to utilize the wikilink system available in Obsidian, which is a feature that allows connecting different Obsidian notes.
 
