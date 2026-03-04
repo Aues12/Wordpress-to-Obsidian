@@ -1,4 +1,4 @@
-# WordPress → Obsidian Tools
+# WordPress to Obsidian Converter
 
 There currently 2 modules in this library. The first is an exporter module that pulls posts from a WordPress blog, and the second is a text-processor module that converts URL links to Obsidian-style wikilinks. Further explanation is given below.
 
