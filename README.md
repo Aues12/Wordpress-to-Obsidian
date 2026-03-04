@@ -7,8 +7,8 @@ There currently 2 modules in this library. The first is an exporter module that 
 Clone the repository:
 
 ```
-git clone https://github.com/yourusername/wordpress-to-obsidian-tools.git
-cd wordpress-to-obsidian-tools
+git clone https://github.com/Aues12/Wordpress-to-Obsidian.git
+cd Wordpress-to-Obsidian
 ```
 
 (Optional but recommended) create a virtual environment:
