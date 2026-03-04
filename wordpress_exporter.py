@@ -1,17 +1,17 @@
 """
 WordPress-to-Obsidian Migrator
 --------------------------------
-Bu script:
-- WordPress yazılarını çeker
-- Tarih + kategori bilgilerini alır
-- Her yazıyı ayrı bir .md dosyası olarak kaydeder
+This script:
+- Pulls posts from a WordPress site
+- Retrieves metadata such as date and categories
+- Saves each post as an individual Markdown (.md) file
 
-Notlar:
-- requests.Session + Retry kullanılarak daha dayanıklı ağ katmanı sağlanmıştır.
-- YAML frontmatter güvenli şekilde PyYAML ile üretilir.
+Notes:
+- A resilient network layer is implemented using requests.Session + Retry.
+- YAML frontmatter is generated safely using PyYAML.
 
-Yeni:
-- --newest N argümanı ile en yeni N postu (date DESC) çekilebilir.
+New feature:
+- The --newest N argument allows fetching the N newest posts (date DESC).
 """
 
 import os
@@ -26,10 +26,13 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # ======================================================
-# 1️⃣ TEMEL AYARLAR
+# 1️⃣ BASIC CONFIGURATION
 # ======================================================
 
-SITE_URL = "https://friendlyrhapsody.com"  # ← Burayı değiştir
+# Replace this with your WordPress site URL
+SITE_URL = "https://example.com"
+
+# Directory where exported Markdown files will be saved
 SAVE_DIR = "obsidian_posts"
 
 POSTS_API = f"{SITE_URL}/wp-json/wp/v2/posts"
@@ -39,12 +42,12 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 
 
 # ======================================================
-# 2️⃣ SESSION + RETRY KONFİGÜRASYONU
+# 2️⃣ SESSION + RETRY CONFIGURATION
 # ======================================================
 
 
 def create_session():
-    """Retry destekli, bağlantı yeniden kullanan bir Session oluşturur."""
+    """Create a requests session with retry support and connection reuse."""
 
     retry_strategy = Retry(
         total=5,
@@ -67,12 +70,13 @@ session = create_session()
 
 
 # ======================================================
-# 3️⃣ YARDIMCI FONKSİYONLAR
+# 3️⃣ HELPER FUNCTIONS
 # ======================================================
 
 
 def fetch_all(url, params=None):
-    """Tüm sayfaları dolaşarak sonuçları çeker."""
+    """Fetch all pages from a paginated WordPress API endpoint."""
+
     results = []
     params = params or {}
 
@@ -87,9 +91,10 @@ def fetch_all(url, params=None):
             response.raise_for_status()
         except requests.HTTPError as e:
             raise requests.HTTPError(
-                f"HTTP hata: {response.status_code} | url={url} | page={page} | body={response.text[:300]}"
+                f"HTTP error: {response.status_code} | url={url} | page={page} | body={response.text[:300]}"
             ) from e
 
+        # WordPress returns the total number of pages in this header
         if total_pages is None:
             header_val = response.headers.get("X-WP-TotalPages")
             if header_val:
@@ -105,6 +110,7 @@ def fetch_all(url, params=None):
 
         results.extend(data)
 
+        # Stop if the last page has been reached
         if total_pages is not None and page >= total_pages:
             break
 
@@ -114,9 +120,20 @@ def fetch_all(url, params=None):
 
 
 def fetch(url, number: int, sort_by: str = "newest"):
-    """En yeni (date DESC) N postu çeker.
+    """
+    Fetch a limited number of posts.
 
-    newest <= 0 ise boş liste döndürür.
+    Parameters
+    ----------
+    url : str
+        WordPress API endpoint.
+
+    number : int
+        Number of posts to fetch.
+
+    sort_by : str
+        "newest" → newest posts first (DESC)
+        "oldest" → oldest posts first (ASC)
     """
 
     if number <= 0:
@@ -133,21 +150,21 @@ def fetch(url, number: int, sort_by: str = "newest"):
         order = "asc"
 
     while len(results) < number:
-        # WP REST API  parametreleri
+        # WordPress REST API query parameters
         params = {
             "per_page": per_page,
             "page": page,
             "orderby": "date",
             "order": order,
         }
-        query = params
-        response = session.get(url, params=query, timeout=30)
+
+        response = session.get(url, params=params, timeout=30)
 
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
             raise requests.HTTPError(
-                f"HTTP hata: {response.status_code} | url={url} | page={page} | body={response.text[:300]}"
+                f"HTTP error: {response.status_code} | url={url} | page={page} | body={response.text[:300]}"
             ) from e
 
         data = response.json()
@@ -158,27 +175,30 @@ def fetch(url, number: int, sort_by: str = "newest"):
         page += 1
 
     return results[:number]
-    
+
 
 
 def clean_filename(name):
-    return re.sub(r"[\/:*?\"<>|]", "-", name).strip()
+    """Sanitize titles so they are safe to use as filenames."""
+
+    return re.sub(r"[\\/:*?\"<>|]", "-", name).strip()
 
 
 # ======================================================
-# 4️⃣ ANA İŞLEM
+# 4️⃣ MAIN PROCESS
 # ======================================================
 
 
 def main():
-      
+
     parser = argparse.ArgumentParser(description="WordPress → Obsidian Migrator")
+
     parser.add_argument(
         "--newest",
         type=int,
         default=0,
         metavar="N",
-        help="En yeni N postu çek (date DESC). Varsayılan: tüm postlar.",
+        help="Fetch the N newest posts (date DESC). Default: fetch all posts.",
     )
 
     parser.add_argument(
@@ -186,27 +206,28 @@ def main():
         type=int,
         default=0,
         metavar="N",
-        help="En eski N postu çek (date ASC). Varsayılan: tüm postlar.",
+        help="Fetch the N oldest posts (date ASC). Default: fetch all posts.",
     )
 
     args = parser.parse_args()
 
     if args.newest > 0:
-        print(f"En yeni {args.newest} yazılar çekiliyor (date DESC)...")
+        print(f"Fetching {args.newest} newest posts (date DESC)...")
         posts = fetch(POSTS_API, number=args.newest, sort_by="newest")
+
     elif args.oldest > 0:
-        print(f"En eski {args.oldest} yazılar çekiliyor (date ASC)...")
+        print(f"Fetching {args.oldest} oldest posts (date ASC)...")
         posts = fetch(POSTS_API, number=args.oldest, sort_by="oldest")
 
     else:
-        print("Yazılar çekiliyor...")
+        print("Fetching all posts...")
         posts = fetch_all(POSTS_API)
 
-    print("Kategoriler çekiliyor...")
+    print("Fetching categories...")
     categories = fetch_all(CATEGORIES_API)
     category_map = {c["id"]: c["name"] for c in categories}
 
-    print("Dosyalar oluşturuluyor...")
+    print("Generating Markdown files...")
 
     for post in posts:
         title = html.unescape(post["title"]["rendered"]).strip()
@@ -222,7 +243,7 @@ def main():
         content_html = post["content"]["rendered"]
         content_md = markdownify(content_html)
 
-        # YAML frontmatter güvenli üretim
+        # Generate YAML frontmatter safely
         metadata = {
             "title": title,
             "date": date,
@@ -248,7 +269,7 @@ def main():
             f.write("---\n")
             f.write(content_md)
 
-    print("✅ Tamamlandı! Obsidian bağlantı ağı oluşturuldu.")
+    print("✅ Done! Obsidian notes were successfully generated.")
 
 
 # ======================================================
