@@ -1,32 +1,32 @@
-"""obsidian_maintenance_phase2.py
+"""url_to_wikilink.py
 
 Phase 2 — Apply Link Conversion (WordPress URL → Obsidian wikilink)
 -----------------------------------------------------------------
-Bu script Obsidian vault'undaki .md dosyalarında, BODY kısmındaki
-WordPress iç linklerini Obsidian wikilink'lerine dönüştürür.
+This script scans Markdown files inside an Obsidian vault and converts
+internal WordPress links in the BODY section into Obsidian wikilinks.
 
-✅ Amaç
-- [metin](https://friendlyrhapsody.com/.../slug/)  →  [[Gerçek Başlık]]
-- Eğer metin, gerçek başlıktan farklıysa (kısaltma/alıntı) → alias kullan:
-    [[Gerçek Başlık|Görünen Metin]]
-- Metindeki italik/kalın vurguları korur ("orijinal metni bozma"):
-    [*Metin*](url) → *[[Gerçek Başlık|Metin]]*
+Goal
+- [text](https://example.com/.../slug/)  →  [[Real Title]]
+- If the link text differs from the real title (short quote, abbreviation, etc.), use an alias:
+    [[Real Title|Displayed Text]]
+- Preserve simple emphasis (italics/bold) without altering the original formatting:
+    [*Text*](url) → *[[Real Title|Text]]*
 
-⚠️ Notlar
-- Sadece SITE_URL domain'ine ait linkler dönüştürülür.
-- Harici linklere dokunulmaz.
-- Frontmatter'a dokunulmaz; sadece body üzerinde çalışır.
-- Varsayılan olarak DRY-RUN çalışır (dosyaya yazmaz).
+Notes
+- Only links that belong to SITE_URL are converted.
+- External links are left untouched.
+- Frontmatter is not modified; only the body is rewritten.
+- By default, the script runs in DRY-RUN mode (no file writes).
 
-Gereksinimler:
+Requirements
   pip install pyyaml
 
-Kullanım:
-  1) CONFIG bölümünü doldur
+Usage
+  1) Fill the CONFIG section
   2) Dry-run:
-     python obsidian_maintenance_phase2.py
-  3) Uygula:
-     python obsidian_maintenance_phase2.py --apply
+     python url_to_wikilink.py
+  3) Apply changes:
+     python url_to_wikilink.py --apply
 """
 
 from __future__ import annotations
@@ -46,18 +46,18 @@ import yaml
 # CONFIG
 # ======================================================
 
-SITE_URL = "YOUR_SITE"  # ← Burayı değiştir
-VAULT_PATH = Path("/Users/eminaliertenu/Documents/Obsidian Vault")
+# Replace with your WordPress site URL (used to detect internal links)
+SITE_URL = "https://example.com"
 
-MAKE_BACKUPS = False
-DRY_RUN_DEFAULT = True
+# Replace with your Obsidian vault path
+VAULT_PATH = Path("/path/to/your/Obsidian Vault")
 
 
 # ======================================================
 # REGEX
 # ======================================================
 
-# Markdown link: [text](url)
+# Markdown link pattern: [text](url)
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
@@ -65,8 +65,11 @@ MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 # DATA MODELS
 # ======================================================
 
+
 @dataclass
 class ApplyStats:
+    """Aggregated stats for a full vault run."""
+
     files_scanned: int = 0
     files_changed: int = 0
     links_found_internal: int = 0
@@ -81,47 +84,64 @@ class ApplyStats:
 
 
 def normalize_netloc(netloc: str) -> str:
+    """Normalize a hostname/netloc for comparison (lowercase, strip 'www.')."""
+
     netloc = (netloc or "").strip().lower()
     return netloc[4:] if netloc.startswith("www.") else netloc
 
 
 
 def to_absolute_url(possibly_relative_url: str, site_url: str) -> str:
+    """Convert a relative URL to an absolute URL using the provided site_url."""
+
     u = (possibly_relative_url or "").strip()
 
+    # Ignore non-http links
     if u.startswith(("mailto:", "tel:", "#")):
         return u
 
+    # Scheme-relative URLs: //example.com/path
     if u.startswith("//"):
         scheme = urlparse(site_url).scheme or "https"
         return f"{scheme}:{u}"
 
+    # Already absolute
     if "://" in u:
         return u
 
+    # Relative to site
     return site_url.rstrip("/") + "/" + u.lstrip("/")
 
 
 
 def iter_markdown_files(vault_path: Path) -> Iterator[Path]:
+    """Yield all Markdown files under the vault path recursively."""
+
     yield from vault_path.rglob("*.md")
 
 
 
 def read_text(path: Path) -> str:
+    """Read text as UTF-8, ignoring decode errors."""
+
     return path.read_text(encoding="utf-8", errors="ignore")
 
 
 
 def write_text(path: Path, text: str) -> None:
+    """Write text as UTF-8."""
+
     path.write_text(text, encoding="utf-8")
 
 
 
 def parse_frontmatter(text: str) -> Tuple[dict, int]:
-    """Frontmatter varsa (--- ... ---) dict ve body başlangıç index'i döndürür.
+    """Parse YAML frontmatter if present.
 
-    Yoksa ({}, 0) döner.
+    Returns:
+        (frontmatter_dict, body_start_index)
+
+    If no frontmatter is present, returns ({}, 0).
     """
 
     if not text.startswith("---"):
@@ -131,9 +151,9 @@ def parse_frontmatter(text: str) -> Tuple[dict, int]:
     if end == -1:
         return {}, 0
 
-    front_matter_block = text[3:end].strip("\n")
+    fm_block = text[3:end].strip("\n")
     try:
-        data = yaml.safe_load(front_matter_block) or {}
+        data = yaml.safe_load(fm_block) or {}
         if not isinstance(data, dict):
             return {}, 0
 
@@ -146,18 +166,20 @@ def parse_frontmatter(text: str) -> Tuple[dict, int]:
 
 
 def build_slug_to_title_map(vault_path: Path) -> Dict[str, str]:
-    """Vault'taki frontmatter'lardan slug->title map üretir."""
+    """Build a slug->title map from Markdown frontmatter in the vault."""
+
     slug_to_title: Dict[str, str] = {}
 
     for p in iter_markdown_files(vault_path):
         text = read_text(p)
-        front_matter, _ = parse_frontmatter(text)
-        slug = front_matter.get("slug")
-        title = front_matter.get("title")
+        fm, _ = parse_frontmatter(text)
+        slug = fm.get("slug")
+        title = fm.get("title")
 
         if isinstance(slug, str) and slug.strip():
             slug = slug.strip()
 
+            # If no explicit title exists, fall back to filename stem
             if not isinstance(title, str) or not title.strip():
                 title = p.stem
 
@@ -168,10 +190,13 @@ def build_slug_to_title_map(vault_path: Path) -> Dict[str, str]:
 
 
 def extract_internal_slug(url: str, site_url: str) -> Optional[str]:
-    """URL bizim domain'imize aitse slug döndürür, değilse None.
+    """Extract the slug from an internal WordPress URL.
 
-    - /2026/02/21/bilisler-diyalektigi/ -> bilisler-diyalektigi
-    - ?p=123 gibi query linklerinde slug döndürmez (None)
+    Returns the last path segment if the URL belongs to site_url, otherwise None.
+
+    Examples:
+      /2026/02/21/some-post/ -> some-post
+      URLs with ?p=123 are ignored (return None)
     """
 
     abs_url = to_absolute_url(url, site_url)
@@ -194,22 +219,23 @@ def extract_internal_slug(url: str, site_url: str) -> Optional[str]:
 
     return parts[-1]
 
+
 # ======================================================
-# Phase 2: Link Dönüştürme
+# Phase 2: Link Conversion
 # ======================================================
 
 
 def split_emphasis(text: str) -> Tuple[str, str, str]:
-    """Tamamı vurgulanmış metinleri ayırır.
+    """Split simple full-wrap emphasis (minimal preservation).
 
-    Örn:
-      "*Metin*" -> ("*", "Metin", "*")
-      "**Metin**" -> ("**", "Metin", "**")
-      "_Metin_" -> ("_", "Metin", "_")
+    Examples:
+      "*Text*" -> ("*", "Text", "*")
+      "**Text**" -> ("**", "Text", "**")
+      "_Text_" -> ("_", "Text", "_")
 
-    Eğer tam sarmalama yoksa: ("", text, "")
+    If there is no full-wrap emphasis, returns ("", text, "").
 
-    Not: Bu minimal bir koruma; karmaşık/nested durumlarda dokunmaz.
+    Note: This is intentionally minimal and does not attempt to handle nested cases.
     """
 
     s = text
@@ -221,7 +247,8 @@ def split_emphasis(text: str) -> Tuple[str, str, str]:
 
 
 def parse_wikilink(core: str) -> Optional[Tuple[str, Optional[str]]]:
-    """core [[Target]] veya [[Target|Alias]] ise (target, alias?) döndürür."""
+    """Parse [[Target]] or [[Target|Alias]] and return (target, alias?)."""
+
     t = core.strip()
     if not (t.startswith("[[") and t.endswith("]]")):
         return None
@@ -233,23 +260,19 @@ def parse_wikilink(core: str) -> Optional[Tuple[str, Optional[str]]]:
     return inside.strip(), None
 
 
-def make_wikilink(real_title: str, display_text: str) -> str:
-    """
-    real_title ve display_text'e göre uygun wikilink üretir.
 
-    - Eğer görünen metin başlıkla aynıysa:
-        [[Başlık]]
-    - Farklıysa alias kullanır:
-        [[Başlık|Görünen Metin]]
+def make_wikilink(real_title: str, display_text: str) -> str:
+    """Create the most compact wikilink for the given title and display text.
+
+    - If display_text matches the title: [[Title]]
+    - Otherwise: [[Title|Display Text]]
     """
 
     display = (display_text or "").strip()
 
-    # Aynıysa alias kullanma
     if not display or display == real_title:
         return f"[[{real_title}]]"
 
-    # Farklıysa alias ekle
     return f"[[{real_title}|{display}]]"
 
 
@@ -259,50 +282,45 @@ def make_wikilink(real_title: str, display_text: str) -> str:
 
 
 def rewrite_body(body: str, slug_map: Dict[str, str], site_url: str) -> Tuple[str, int, int, int]:
-    """
-    Body içindeki Markdown linklerini tarar ve WordPress internal linklerini
-    Obsidian wikilink formatına dönüştürür.
+    """Rewrite Markdown body content by converting internal WP links to wikilinks.
 
-    Dönüşüm yalnızca:
-    - Link internal ise
-    - Slug vault içinde karşılık buluyorsa
+    Conversion happens only when:
+    - the URL is internal to site_url, and
+    - the extracted slug exists in slug_map.
 
     Returns:
         (new_body, internal_found, converted, unmatched)
     """
 
-    # İstatistik sayaçları
-    internal_found = 0   # Kaç internal WP link bulundu?
-    converted = 0        # Kaçı başarıyla wikilink'e çevrildi?
-    unmatched = 0        # Internal olup slug map'te bulunamayanlar
+    internal_found = 0
+    converted = 0
+    unmatched = 0
 
     def repl(m: re.Match) -> str:
-        """
-        Tek bir Markdown link eşleşmesini işler.
-        Regex her [text](url) için bu fonksiyonu çağırır.
-        """
+        """Process a single [text](url) match."""
+
         nonlocal internal_found, converted, unmatched
 
         link_text_raw = m.group(1)
         url = m.group(2).strip()
 
-        # 1️⃣ URL'den slug çıkar (internal değilse dokunma)
+        # 1) Extract internal slug (if not internal, keep original markdown)
         slug = extract_internal_slug(url, site_url)
         if slug is None:
             return m.group(0)
 
         internal_found += 1
 
-        # 2️⃣ Slug vault'ta var mı?
+        # 2) Resolve slug -> real title
         real_title = slug_map.get(slug)
         if real_title is None:
             unmatched += 1
             return m.group(0)
 
-        # 3️⃣ Vurgu (italik/kalın) varsa dış kabuğu koru
+        # 3) Preserve simple emphasis wrapper
         pre, core, suf = split_emphasis(link_text_raw)
 
-        # 4️⃣ Eğer core zaten wikilink ise içeriğini parse et
+        # 4) If core is already a wikilink, reuse its display text
         wk = parse_wikilink(core)
         if wk is not None:
             _target, alias = wk
@@ -311,12 +329,11 @@ def rewrite_body(body: str, slug_map: Dict[str, str], site_url: str) -> Tuple[st
             converted += 1
             return f"{pre}{new_wk}{suf}"
 
-        # 5️⃣ Normal durumda görünen metni alias kararı için kullan
+        # 5) Normal case: use the link text as the display text
         new_wk = make_wikilink(real_title, core)
         converted += 1
         return f"{pre}{new_wk}{suf}"
 
-    # Body içindeki tüm Markdown linklerini dönüştür
     new_body = MD_LINK_RE.sub(repl, body)
     return new_body, internal_found, converted, unmatched
 
@@ -327,22 +344,24 @@ def rewrite_body(body: str, slug_map: Dict[str, str], site_url: str) -> Tuple[st
 
 
 def process_vault(vault_path: Path, site_url: str, apply: bool, backups: bool) -> ApplyStats:
+    """Scan the vault and apply conversions file-by-file."""
+
     stats = ApplyStats(unmatched_examples=[])
     slug_map = build_slug_to_title_map(vault_path)
 
     if not slug_map:
-        print("Uyarı: slug->title map boş. Frontmatter'da 'slug' alanı yok olabilir.")
+        print("Warning: slug->title map is empty. Frontmatter may be missing the 'slug' field.")
 
     for md_path in iter_markdown_files(vault_path):
         stats.files_scanned += 1
 
         original = read_text(md_path)
-        front_matter, body_start = parse_frontmatter(original)
+        fm, body_start = parse_frontmatter(original)
         body = original[body_start:] if body_start > 0 else original
 
         new_body, internal_found, converted, unmatched = rewrite_body(body, slug_map, site_url)
 
-        # Eğer unmatched varsa örnek topla (ilk 10 tane)
+        # Collect a few unmatched examples (up to 10) for debugging
         if unmatched > 0 and len(stats.unmatched_examples) < 10:
             for m in MD_LINK_RE.finditer(body):
                 url = m.group(2).strip()
@@ -374,7 +393,10 @@ def process_vault(vault_path: Path, site_url: str, apply: bool, backups: bool) -
     return stats
 
 
+
 def print_stats(stats: ApplyStats, apply: bool) -> None:
+    """Print a summary report."""
+
     mode = "APPLY" if apply else "DRY-RUN"
     print(f"[{mode}] Files scanned: {stats.files_scanned}")
     print(f"[{mode}] Files changed: {stats.files_changed}")
@@ -396,17 +418,17 @@ def print_stats(stats: ApplyStats, apply: bool) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Obsidian Phase 2: convert WP URLs to wikilinks")
-    parser.add_argument("--apply", action="store_true", help="Değişiklikleri dosyalara yaz")
-    parser.add_argument("--backup", action="store_true", help=".bak yedeği oluştur")
-    parser.add_argument("--vault", type=str, default=str(VAULT_PATH), help="Vault path")
-    parser.add_argument("--site", type=str, default=SITE_URL, help="Site URL (domain)")
+    parser = argparse.ArgumentParser(description="Convert WP URLs to Obsidian wikilinks")
+    parser.add_argument("--apply", action="store_true", help="Write changes to files")
+    parser.add_argument("--backup", action="store_true", help="Create .bak backups")
+    parser.add_argument("--vault", type=str, default=str(VAULT_PATH), help="Path to the Obsidian vault")
+    parser.add_argument("--site", type=str, default=SITE_URL, help="Site URL (used to detect internal links)")
 
     args = parser.parse_args()
 
     vault = Path(args.vault)
     if not vault.exists():
-        print(f"Vault bulunamadı: {vault}")
+        print(f"Vault not found: {vault}")
         sys.exit(1)
 
     apply = bool(args.apply)
