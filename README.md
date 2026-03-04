@@ -1,8 +1,30 @@
-# WordPress to Obsidian Converter
+# WordPress to Obsidian 
 
 There currently 2 modules in this library. The first is an exporter module that pulls posts from a WordPress blog, and the second is a text-processor module that converts URL links to Obsidian-style wikilinks. Further explanation is given below.
 
-## 1) Exporter
+## Installation
+
+Clone the repository:
+
+```
+git clone https://github.com/yourusername/wordpress-to-obsidian-tools.git
+cd wordpress-to-obsidian-tools
+```
+
+(Optional but recommended) create a virtual environment:
+
+```
+python -m venv venv
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```
+pip install -r requirements.txt
+```
+
+## 1) Exporter module
 
 I wrote this script to export my WordPress blog posts to Obsidian note taking app. Since Obsidian uses Markdown (.md) file format, wordpress_exporter.py exports the post data as Markdown files – using the **WordPress REST API**.
 
@@ -40,7 +62,7 @@ This command exports the 50 newest posts.
 
 ---
 
-## 2) Text-processor (url to wikilink)
+## 2) Text-processor (url to wikilink) module
 
 I also use URL links a lot in my writings. These almost always refer to a link of another blog post. I wanted to utilize the wikilink system available in Obsidian, which is a feature that allows connecting different Obsidian notes.
 
