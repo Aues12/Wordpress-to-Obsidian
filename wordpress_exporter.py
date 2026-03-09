@@ -149,6 +149,8 @@ def fetch(url, number: int, sort_by: str = "newest"):
         order = "desc"
     elif sort_by == "oldest":
         order = "asc"
+    else:
+        raise ValueError("sort_by parameter must be either 'newest' or 'oldest'")
 
     while len(results) < number:
         # WordPress REST API query parameters
