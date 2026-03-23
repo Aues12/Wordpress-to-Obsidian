@@ -7,7 +7,7 @@ This repository contains two main scripts for moving a WordPress blog into an Ob
 
 The link conversion step also uses `post_processing.py` to clean up a few Markdown edge cases after replacements are made.
 
-## Quick Start
+## Quick Start and Installation
 
 This is the exact end-to-end sequence for a first run:
 
@@ -61,28 +61,6 @@ This is the exact end-to-end sequence for a first run:
    ```
    python url_to_wikilink.py --apply --vault "/path/to/your/Obsidian Vault" --site "https://example.com"
    ```
-
-## Installation
-
-Clone the repository:
-
-```
-git clone https://github.com/Aues12/Wordpress-to-Obsidian.git
-cd Wordpress-to-Obsidian
-```
-
-(Optional but recommended) create a virtual environment:
-
-```
-python -m venv venv
-source venv/bin/activate
-```
-
-Install dependencies:
-
-```
-pip install -r requirements.txt
-```
 
 ## Configuration requirements
 
@@ -182,6 +160,12 @@ This script runs in **dry-run mode** by default, meaning it does not make any ac
 
 Examples:
 
+You can use the `--apply` command-line parameter by itself to apply the changes:
+
+```
+python url_to_wikilink.py --apply
+```
+
 Dry run with explicit overrides:
 
 ```
@@ -192,12 +176,6 @@ Apply changes and create backups:
 
 ```
 python url_to_wikilink.py --apply --backup --vault "/path/to/vault" --site "https://example.com"
-```
-
-You can still use the `--apply` command-line parameter by itself to apply the changes:
-
-```
-python url_to_wikilink.py --apply
 ```
 
 ### How matching works
