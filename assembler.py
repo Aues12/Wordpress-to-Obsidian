@@ -20,7 +20,7 @@ def _assemble_per_post(posts: list[Post], verbose: bool = False) -> list[Documen
     units: list[DocumentUnit] = []
 
     for post in posts:
-        filename = f"{post.title or 'untitled'}.md"
+        filename = f"{post.slug or 'untitled'}.md"
 
         unit = DocumentUnit(
             filename=filename,

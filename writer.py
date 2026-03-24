@@ -39,7 +39,12 @@ def _write_markdown(
 
     for unit in units:
         file_path = output_path / unit.filename
-        file_path.write_text(unit.content, encoding="utf-8")
+        content = unit.content
+
+        if unit.title:
+            content = f"# {unit.title}\n\n{content}"
+        
+        file_path.write_text(content, encoding="utf-8")
 
         if verbose:
-            print(f"Wrote: {file_path}")
+            print(f"Wrote: {file_path}") 
