@@ -70,14 +70,6 @@ Dependencies:
 
 * requests
 
-```bash
-pip install -r requirements.txt
-```
-
-Dependencies:
-
-* requests
-
 ---
 
 ## Usage
