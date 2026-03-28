@@ -29,24 +29,25 @@ WordPress API → JSON → Process → Assemble → Write
 ## Project Structure
 
 ```
-wp_obsidian/
+Wordpress-to-Obsidian/
 ├─ cli/
 │  └─ main.py
+├─ config/
+│  └─ loader.py
 ├─ core/
-│  ├─ models.py
-│  ├─ config.py
-│  └─ utils.py
+│  └─ models.py
 ├─ data/
 │  └─ imported.json
-├─ importers/
+├─ importer/
 │  └─ wordpress_api.py
-├─ sources/
-│  └─ imported_json.py
 ├─ processors/
 │  ├─ metadata.py
 │  └─ pipeline.py
+├─ sources/
+│  └─ imported_json.py
 ├─ assembler.py
-├─ writer.py
+├─ config.json
+└─ writer.py
 ```
 
 ---
@@ -57,7 +58,16 @@ wp_obsidian/
 
 ```bash
 git clone https://github.com/Aues12/WordPress-to-Obsidian.git
-cd wp-to-obsidian
+cd WordPress-to-Obsidian
+```
+
+### Quickstart
+
+(Optional but recommended) Create and activate a virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate
 ```
 
 ### Install dependencies
@@ -77,7 +87,7 @@ Dependencies:
 ### 1. Fetch data from WordPress
 
 ```python
-from importers.wordpress_api import export_posts_to_json
+from importer.wordpress_api import export_posts_to_json
 
 export_posts_to_json(
     base_url="https://your-site.com",
@@ -87,7 +97,25 @@ export_posts_to_json(
 
 ---
 
-### 2. Run the pipeline
+### 2. Configure the CLI
+
+Create/edit the `config.json` file in the project root:
+
+```json
+{
+  "wordpress": {
+    "base_url": "https://your-site.com"
+  },
+  "paths": {
+    "json_file": "data/imported.json",
+    "output_dir": "output"
+  }
+}
+```
+
+---
+
+### 3. Run the pipeline
 
 ```bash
 python -m cli.main
@@ -95,10 +123,18 @@ python -m cli.main
 
 This will:
 
+* Load `config.json`
+* Reuse existing JSON or fetch fresh data from WordPress
 * Load JSON
 * Process posts
 * Assemble output
 * Write Markdown files to `output/`
+
+Available CLI options:
+
+* `--refresh` fetches fresh data from WordPress before building
+* `--newest N` builds/writes only the newest `N` posts
+* `--oldest N` builds/writes only the oldest `N` posts
 
 ---
 
@@ -149,13 +185,11 @@ Handles output format (e.g., markdown, docx).
 
 ### Writer
 
-* DOCX export
 * Frontmatter support
 
 ### CLI
 
-* Argument parsing
-* Config integration
+* Configurable output directory
 
 ---
 
