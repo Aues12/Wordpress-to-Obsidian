@@ -61,7 +61,7 @@ git clone https://github.com/Aues12/WordPress-to-Obsidian.git
 cd WordPress-to-Obsidian
 ```
 
-### Quickstart
+### Create virtual environment:
 
 (Optional but recommended) Create and activate a virtual environment:
 
