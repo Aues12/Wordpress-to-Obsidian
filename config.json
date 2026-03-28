@@ -1,0 +1,9 @@
+{
+  "wordpress": {
+    "base_url": "https://your-site.com"
+  },
+  "paths": {
+    "json_file": "data/imported.json",
+    "output_dir": "output"
+  }
+}

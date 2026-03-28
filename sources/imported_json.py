@@ -14,7 +14,6 @@ def load_imported_json(
     """
     Load imported WordPress JSON and convert it into Post objects.
     """
-    start_time = time.time()
     input_path = Path(input_file)
 
     if verbose:
@@ -47,9 +46,5 @@ def load_imported_json(
             source_type="json",
         )
         posts.append(post)
-
-    if verbose:
-        elapsed = time.time() - start_time
-        print(f"Loaded {len(posts)} posts in {elapsed:.2f} seconds")
 
     return posts

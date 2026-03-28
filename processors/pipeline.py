@@ -13,13 +13,13 @@ def build_pipeline():
     ]
 
 
-def process_post(post: Post, verbose: bool = False) -> Post:
+def process_post(post: Post) -> Post:
     """
     Process a single post through all pipeline steps.
+
+    Runs normalization to ensure consistent formatting.
     """
     for step in build_pipeline():
-        if verbose:
-            print(f"Running step: {step.__name__}")
         post = step(post)
 
     return post
@@ -28,14 +28,16 @@ def process_post(post: Post, verbose: bool = False) -> Post:
 def process_posts(posts: list[Post], verbose: bool = False) -> list[Post]:
     """
     Process a list of posts.
+
+    Runs normalization to ensure consistent formatting.
     """
     processed_posts: list[Post] = []
 
     for post in posts:
-        processed_post = process_post(post, verbose=verbose)
+        processed_post = process_post(post)
         processed_posts.append(processed_post)
 
     if verbose:
-        print(f"Processed {len(processed_posts)} posts.")
+        print(f"Processed and normalized {len(processed_posts)} posts.")
 
     return processed_posts

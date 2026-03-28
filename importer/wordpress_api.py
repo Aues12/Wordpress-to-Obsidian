@@ -13,6 +13,8 @@ from urllib3.util.retry import Retry
 DEFAULT_TIMEOUT = 30
 DEFAULT_PER_PAGE = 20
 
+JSON_PATH = Path("data/imported.json")
+
 
 class WordPressAPIError(RuntimeError):
     """Raised when a WordPress API request fails."""
@@ -259,6 +261,47 @@ def export_posts_to_json(
     return output_path
 
 
+def ensure_json_export(base_url: str, json_path: Path, refresh: bool = False) -> None:
+    """
+    Ensure that WordPress posts are available as a local JSON file.
+
+    This function checks whether the given JSON file already exists.
+    - If the file exists and `refresh` is False, it does nothing (uses cached data).
+    - If the file does not exist, or `refresh` is True, it fetches posts
+      from the WordPress API and writes them to the JSON file.
+
+    Parameters
+    ----------
+    base_url : str
+        Base URL of the WordPress site (e.g., "https://your-site.com").
+
+    json_path : Path
+        Path where the JSON file should be stored (e.g., data/imported.json).
+
+    refresh : bool, optional
+        If True, forces re-fetching data from WordPress even if the JSON file exists.
+        Default is False.
+
+    Notes
+    -----
+    - Creates parent directories if they do not exist.
+    - Acts as a simple caching mechanism to avoid repeated API calls.
+    - Intended to be used both in CLI pipelines and standalone scripts.
+    """
+
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if json_path.exists() and not refresh:
+        print(f"[INFO] Using existing JSON: {json_path}")
+        return
+
+    print(f"[INFO] Fetching fresh data from WordPress: {base_url}")
+    export_posts_to_json(
+        base_url=base_url,
+        output_file=str(json_path)
+    )
+
+
 import time
 
 def main():
@@ -268,11 +311,7 @@ def main():
     base_url = "https://friendlyrhapsody.com"
     output_file = "data/imported.json"
     
-
-    export_posts_to_json(
-    base_url,
-    output_file
-    )
+    ensure_json_export(base_url, JSON_PATH, refresh=True)
 
     elapsed = time.time() - start_time
 
