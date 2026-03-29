@@ -125,7 +125,7 @@ This will:
 
 * Load `config.json`
 * Reuse existing JSON or fetch fresh data from WordPress
-* Load JSON
+* Load JSON data
 * Process posts
 * Assemble output
 * Write Markdown files to `output/`
@@ -133,8 +133,8 @@ This will:
 Available CLI options:
 
 * `--refresh` fetches fresh data from WordPress before building
-* `--newest N` builds/writes only the newest `N` posts
-* `--oldest N` builds/writes only the oldest `N` posts
+* `--newest N` builds only the newest `N` posts
+* `--oldest N` builds only the oldest `N` posts
 
 ---
 
