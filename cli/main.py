@@ -38,6 +38,13 @@ def parse_args():
         help="Fetch fresh data from WordPress"
     )
 
+    parser.add_argument(
+        "--mode",
+        choices=["per_post", "book"],
+        default="per_post",
+        help="Output mode"
+    )
+
     return parser.parse_args()
 
 
@@ -81,12 +88,13 @@ def main() -> None:
         oldest=args.oldest
     )
 
-    units = assemble(posts, mode="per_post", verbose=True)
+    units = assemble(posts, mode=args.mode, verbose=True)
 
     print(f"[INFO] Writing {len(units)} markdown files...")
+    print(f"[INFO] Output mode: {args.mode}")
     write(units, format="md", output_dir="output", verbose=True)
 
-    print("Build completed.")
+    print("Build completed. ✅")
 
 
 if __name__ == "__main__":

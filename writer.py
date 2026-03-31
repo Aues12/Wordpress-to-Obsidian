@@ -30,6 +30,7 @@ def _write_markdown(
     units: list[DocumentUnit],
     output_dir: str | Path = DEFAULT_OUTPUT_DIR,
     verbose: bool = False,
+    mode: str = "per_post"
 ) -> None:
     """
     Write each DocumentUnit as a separate markdown file.
@@ -37,7 +38,24 @@ def _write_markdown(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    for unit in units:
+    if mode == "per_post":
+        for unit in units:
+            file_path = output_path / unit.filename
+            content = unit.content
+
+            if unit.title:
+                content = f"# {unit.title}\n\n{content}"
+            
+            file_path.write_text(content, encoding="utf-8")
+
+            if verbose:
+                print(f"Wrote: {file_path}")
+
+    elif mode == "book":
+        if len(units) != 1:
+            raise ValueError("Book mode expects exactly one DocumentUnit.")
+        
+        unit = units[0]
         file_path = output_path / unit.filename
         content = unit.content
 
@@ -47,4 +65,4 @@ def _write_markdown(
         file_path.write_text(content, encoding="utf-8")
 
         if verbose:
-            print(f"Wrote: {file_path}") 
+            print(f"Wrote: {file_path}")
