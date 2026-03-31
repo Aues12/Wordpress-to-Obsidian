@@ -18,18 +18,17 @@ BASE_URL = config["wordpress"]["base_url"]
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    group = parser.add_mutually_exclusive_group()
-
-    group.add_argument(
-        "--newest",
-        type=int,
-        help="Select N newest posts"
+    parser.add_argument(
+        "--order",
+        choices=["newest", "oldest"],
+        default="newest",
+        help="Order posts by date"
     )
 
-    group.add_argument(
-        "--oldest",
+    parser.add_argument(
+        "--limit",
         type=int,
-        help="Select N oldest posts"
+        help="Limit number of posts"
     )
 
     parser.add_argument(
@@ -48,22 +47,14 @@ def parse_args():
     return parser.parse_args()
 
 
-def select_posts(posts, newest=None, oldest=None):
-    # Date parsing helper (if string)
-    def get_date(post):
-        return datetime.fromisoformat(post.date) if isinstance(post.date, str) else post.date
+def order_and_limit_posts(posts, order: str = "newest", limit: int | None = None):
+    # sort posts by date order
+    reverse = order == "newest"
+    posts = sorted(posts, key=lambda p: p.date or "", reverse=reverse)
 
-    if newest is not None:
-        posts = sorted(posts, key=get_date, reverse=True)
-        selected = posts[:newest]
-        print(f"[INFO] Selected newest {len(selected)} posts")
-        return selected
-
-    if oldest is not None:
-        posts = sorted(posts, key=get_date)
-        selected = posts[:oldest]
-        print(f"[INFO] Selected oldest {len(selected)} posts")
-        return selected
+    # limit the number of posts
+    if limit is not None:
+        posts = posts[:limit]
 
     return posts
 
@@ -82,10 +73,10 @@ def main() -> None:
     posts = load_imported_json(verbose=True)
     posts = process_posts(posts, verbose=True)
 
-    posts = select_posts(
+    posts = order_and_limit_posts(
         posts,
-        newest=args.newest,
-        oldest=args.oldest
+        order=args.order,
+        limit=args.limit
     )
 
     units = assemble(posts, mode=args.mode, verbose=True)
