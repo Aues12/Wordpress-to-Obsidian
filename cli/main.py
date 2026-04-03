@@ -44,6 +44,13 @@ def parse_args():
         help="Output mode"
     )
 
+    parser.add_argument(
+        "--frontmatter",
+        action="store_true",
+        help="Include frontmatter"
+    )
+
+
     return parser.parse_args()
 
 
@@ -79,7 +86,7 @@ def main() -> None:
         limit=args.limit
     )
 
-    units = assemble(posts, mode=args.mode, verbose=True)
+    units = assemble(posts, mode=args.mode, verbose=True, include_frontmatter=args.frontmatter)
 
     print(f"[INFO] Writing {len(units)} markdown files...")
     print(f"[INFO] Output mode: {args.mode}")

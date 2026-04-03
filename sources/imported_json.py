@@ -4,6 +4,11 @@ from pathlib import Path
 
 from core.models import Post
 
+from config.loader import load_config
+
+config = load_config()
+
+
 DEFAULT_INPUT_FILE = "data/imported.json"
 
 
@@ -42,6 +47,7 @@ def load_imported_json(
                 "categories": item.get("categories", []) or [],
                 "category_names": item.get("category_names", []) or [],
             },
+            frontmatter={field: item.get(field) for field in config["frontmatter"]["fields"]},
             source_path=str(input_path),
             source_type="json",
         )

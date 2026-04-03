@@ -39,6 +39,7 @@ def _write_markdown(
     output_path.mkdir(parents=True, exist_ok=True)
 
     if mode == "per_post":
+        # In this case, each unit is a post object
         for unit in units:
             file_path = output_path / unit.filename
             content = unit.content
@@ -54,7 +55,7 @@ def _write_markdown(
     elif mode == "book":
         if len(units) != 1:
             raise ValueError("Book mode expects exactly one DocumentUnit.")
-        
+        # In this case, the  unit is the posts combined
         unit = units[0]
         file_path = output_path / unit.filename
         content = unit.content

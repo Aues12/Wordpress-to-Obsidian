@@ -5,5 +5,9 @@
   "paths": {
     "json_file": "data/imported.json",
     "output_dir": "output"
+  },
+  "frontmatter": {
+    "include_frontmatter": true,
+    "fields": ["title", "date", "modified", "slug", "category_names"]
   }
 }
