@@ -22,7 +22,14 @@ def parse_args():
         "--order",
         choices=["newest", "oldest"],
         default="newest",
-        help="Order posts by date"
+        help="Order posts by date, when pulling from JSON"
+    )
+
+    parser.add_argument(
+        "--write_order",
+        choices=["newest", "oldest"],
+        default="oldest",
+        help="Order posts by date, when writing to document"
     )
 
     parser.add_argument(
@@ -55,13 +62,20 @@ def parse_args():
 
 
 def order_and_limit_posts(posts, order: str = "newest", limit: int | None = None):
-    # sort posts by date order
+    # sort posts by date order, for pulling
     reverse = order == "newest"
     posts = sorted(posts, key=lambda p: p.date or "", reverse=reverse)
 
     # limit the number of posts
     if limit is not None:
         posts = posts[:limit]
+
+    return posts
+
+def write_order(posts, order: str = "oldest", limit: int | None = None):
+    # sort posts by date order for writing
+    reverse = order == "newest"
+    posts = sorted(posts, key=lambda p: p.date or "", reverse=reverse)
 
     return posts
 
@@ -86,7 +100,14 @@ def main() -> None:
         limit=args.limit
     )
 
-    units = assemble(posts, mode=args.mode, verbose=True, include_frontmatter=args.frontmatter)
+    posts = write_order(posts, order=args.write_order)
+
+    units = assemble(posts, 
+                     mode=args.mode, 
+                     verbose=True, 
+                     include_frontmatter=args.frontmatter if args.frontmatter 
+                     else config["frontmatter"]["include_frontmatter"]
+                     )
 
     print(f"[INFO] Writing {len(units)} markdown files...")
     print(f"[INFO] Output mode: {args.mode}")
