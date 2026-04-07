@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.models import Post
-from processors.metadata import normalize_metadata
+from processors.metadata import normalize_post
 
 
 def build_pipeline():
@@ -9,7 +9,7 @@ def build_pipeline():
     Return the list of processing steps.
     """
     return [
-        normalize_metadata,
+        normalize_post,
     ]
 
 

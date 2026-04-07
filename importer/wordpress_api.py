@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import html
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -144,6 +145,9 @@ def build_category_map(
 
 # --- Normalization ---
 
+def clean_text(text: str) -> str:
+    return html.unescape(text)
+
 def normalize_post(
     post: dict[str, Any],
     category_map: dict[int, str] | None = None,
@@ -168,8 +172,8 @@ def normalize_post(
         "slug": post.get("slug"),
         "status": post.get("status"),
         "link": post.get("link"),
-        "title": (post.get("title") or {}).get("rendered", ""),
-        "content": (post.get("content") or {}).get("rendered", ""),
+        "title": clean_text((post.get("title") or {}).get("rendered", "")),
+        "content": clean_text((post.get("content") or {}).get("rendered", "")),
         "categories": category_ids,
         "category_names": category_names
             }

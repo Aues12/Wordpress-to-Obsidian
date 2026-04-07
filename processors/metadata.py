@@ -42,6 +42,7 @@ def slugify(value: str) -> str:
     return value.strip("-")
 
 
+
 def normalize_title(post: Post) -> Post:
     """
     Ensure the post has a usable title.
@@ -91,7 +92,7 @@ def normalize_date(post: Post) -> Post:
         return post
 
 
-def normalize_metadata(post: Post) -> Post:
+def normalize_post(post: Post) -> Post:
     """
     Run all metadata normalization steps for a single post.
     """

@@ -7,7 +7,23 @@
     "output_dir": "output"
   },
   "frontmatter": {
+    "include_frontmatter": false,
+    "fields": [
+      "title",
+      "date",
+      "modified",
+      "slug",
+      "category_names"
+    ]
+  },
+  "usage_profile": {
+    "refresh": true,
+    "order": "newest",
+    "limit": 10,
+    "write_order": "newest",
+    "mode": "per_post",
     "include_frontmatter": true,
-    "fields": ["title", "date", "modified", "slug", "category_names"]
+    "format": "md",
+    "output_dir": "output"
   }
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,25 +15,86 @@ from sources.imported_json import load_imported_json
 from writer import write
 
 
-config = load_config()
+CONFIG_PATH = Path("config.json")
+config = load_config(str(CONFIG_PATH))
 JSON_PATH = Path(config["paths"]["json_file"])
 OUTPUT_DIR = config["paths"].get("output_dir", "output")
 BASE_URL = config["wordpress"]["base_url"]
 DEFAULT_FRONTMATTER = config["frontmatter"]["include_frontmatter"]
 UNSET = object()
 
+DEFAULT_USAGE_PROFILE = {
+    "refresh": False,
+    "order": "newest",
+    "limit": None,
+    "write_order": "oldest",
+    "mode": "per_post",
+    "include_frontmatter": DEFAULT_FRONTMATTER,
+    "format": "md",
+    "output_dir": OUTPUT_DIR,
+}
+
+
+def load_usage_profile() -> dict:
+    profile = config.get("usage_profile", {})
+    if not isinstance(profile, dict):
+        profile = {}
+
+    loaded_profile = DEFAULT_USAGE_PROFILE.copy()
+    loaded_profile.update(
+        {
+            key: profile[key]
+            for key in DEFAULT_USAGE_PROFILE
+            if key in profile
+        }
+    )
+
+    return loaded_profile
+
+
+USAGE_PROFILE = load_usage_profile()
+
 
 @dataclass
 class CommandSession:
     posts: list[Post] | None = None
     units: list[DocumentUnit] | None = None
-    refresh: bool = False
-    order: str = "newest"
-    limit: int | None = None
-    write_order_value: str = "oldest"
-    mode: str = "per_post"
-    include_frontmatter: bool = DEFAULT_FRONTMATTER
-    output_dir: str = OUTPUT_DIR
+    refresh: bool = USAGE_PROFILE["refresh"]
+    order: str = USAGE_PROFILE["order"]
+    limit: int | None = USAGE_PROFILE["limit"]
+    write_order_value: str = USAGE_PROFILE["write_order"]
+    mode: str = USAGE_PROFILE["mode"]
+    include_frontmatter: bool = USAGE_PROFILE["include_frontmatter"]
+    output_format: str = USAGE_PROFILE["format"]
+    output_dir: str = USAGE_PROFILE["output_dir"]
+
+
+def build_usage_profile(session: CommandSession) -> dict:
+    return {
+        "refresh": session.refresh,
+        "order": session.order,
+        "limit": session.limit,
+        "write_order": session.write_order_value,
+        "mode": session.mode,
+        "include_frontmatter": session.include_frontmatter,
+        "format": session.output_format,
+        "output_dir": session.output_dir,
+    }
+
+
+def save_usage_profile(session: CommandSession) -> bool:
+    try:
+        config_data = load_config(str(CONFIG_PATH))
+        config_data["usage_profile"] = build_usage_profile(session)
+
+        with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+            json.dump(config_data, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+    except Exception as exc:
+        print(f"[WARN] Could not save last used settings: {exc}")
+        return False
+
+    return True
 
 
 def prompt_text(message: str) -> str:
@@ -66,6 +128,29 @@ def prompt_yes_no(message: str, default: bool | None = None) -> bool:
             return False
 
         print("Please enter 'y' or 'n'.")
+
+
+def prompt_yes_no_menu(message: str, default: bool = True) -> bool:
+    default_label = "Yes" if default else "No"
+
+    print(f"\n{message}")
+    print("1) Yes")
+    print("2) No")
+    print(f"Press Enter for {default_label}.")
+
+    while True:
+        raw = prompt_text("> ").lower()
+
+        if not raw:
+            return default
+
+        if raw in {"1", "y", "yes"}:
+            return True
+
+        if raw in {"2", "n", "no"}:
+            return False
+
+        print("Please choose 1 for Yes, 2 for No, or press Enter for the default.")
 
 
 def prompt_choice(message: str, choices: list[str], default: str | None = None) -> str:
@@ -173,6 +258,7 @@ def print_status(session: CommandSession) -> None:
     print(f"  write_order: {session.write_order_value}")
     print(f"  mode: {session.mode}")
     print(f"  include_frontmatter: {frontmatter_label}")
+    print(f"  format: {session.output_format}")
     print(f"  output_dir: {session.output_dir}")
 
 
@@ -194,9 +280,17 @@ def require_units(session: CommandSession, command_name: str) -> bool:
     return False
 
 
-def command_export_json(session: CommandSession, refresh: bool | None = None) -> None:
-    refresh_value = session.refresh if refresh is None else refresh
-    refresh_value = prompt_yes_no("refresh?", default=refresh_value) if refresh is None else refresh_value
+def command_export_json(
+    session: CommandSession,
+    refresh: bool | None = None,
+    prompt_for_parameters: bool = True,
+) -> None:
+    if refresh is not None:
+        refresh_value = refresh
+    elif prompt_for_parameters:
+        refresh_value = prompt_yes_no("refresh?", default=session.refresh)
+    else:
+        refresh_value = session.refresh
 
     ensure_json_export(
         base_url=BASE_URL,
@@ -231,17 +325,23 @@ def command_order_limit(
     session: CommandSession,
     order: str | None = None,
     limit: int | None | object = UNSET,
+    prompt_for_parameters: bool = True,
 ) -> None:
     if not require_posts(session, "order_limit"):
         return
 
-    order_value = order or prompt_choice(
-        "order?",
-        choices=["newest", "oldest"],
-        default=session.order,
-    )
+    if order is not None:
+        order_value = order
+    elif prompt_for_parameters:
+        order_value = prompt_choice(
+            "order?",
+            choices=["newest", "oldest"],
+            default=session.order,
+        )
+    else:
+        order_value = session.order
 
-    if limit is UNSET and order is None:
+    if limit is UNSET and prompt_for_parameters and order is None:
         limit_value = prompt_limit(default=session.limit)
     elif limit is UNSET:
         limit_value = session.limit
@@ -260,15 +360,24 @@ def command_order_limit(
     print(f"[INFO] Posts ordered as '{order_value}' with limit={limit_label}.")
 
 
-def command_write_order(session: CommandSession, order: str | None = None) -> None:
+def command_write_order(
+    session: CommandSession,
+    order: str | None = None,
+    prompt_for_parameters: bool = True,
+) -> None:
     if not require_posts(session, "write_order"):
         return
 
-    order_value = order or prompt_choice(
-        "write_order?",
-        choices=["newest", "oldest"],
-        default=session.write_order_value,
-    )
+    if order is not None:
+        order_value = order
+    elif prompt_for_parameters:
+        order_value = prompt_choice(
+            "write_order?",
+            choices=["newest", "oldest"],
+            default=session.write_order_value,
+        )
+    else:
+        order_value = session.write_order_value
 
     session.posts = write_order(session.posts, order=order_value)
     session.units = None
@@ -280,23 +389,31 @@ def command_assemble(
     session: CommandSession,
     mode: str | None = None,
     include_frontmatter: bool | None = None,
+    prompt_for_parameters: bool = True,
 ) -> None:
     if not require_posts(session, "assemble"):
         return
 
-    mode_value = mode or prompt_choice(
-        "mode?",
-        choices=["per_post", "book"],
-        default=session.mode,
-    )
-    frontmatter_value = (
-        prompt_yes_no(
+    if mode is not None:
+        mode_value = mode
+    elif prompt_for_parameters:
+        mode_value = prompt_choice(
+            "mode?",
+            choices=["per_post", "book"],
+            default=session.mode,
+        )
+    else:
+        mode_value = session.mode
+
+    if include_frontmatter is not None:
+        frontmatter_value = include_frontmatter
+    elif prompt_for_parameters:
+        frontmatter_value = prompt_yes_no(
             "include frontmatter?",
             default=session.include_frontmatter,
         )
-        if include_frontmatter is None
-        else include_frontmatter
-    )
+    else:
+        frontmatter_value = session.include_frontmatter
 
     # assemble() mutates post content when frontmatter is included, so we
     # assemble a snapshot to keep the session posts reusable across commands.
@@ -322,23 +439,28 @@ def command_write(session: CommandSession) -> None:
     print(f"[INFO] Output mode: {session.mode}")
     write(
         session.units,
-        format="md",
+        format=session.output_format,
         output_dir=session.output_dir,
         verbose=True,
     )
+    if save_usage_profile(session):
+        print("[INFO] Saved last used settings.")
 
 
-def run_full_pipeline(session: CommandSession) -> None:
+def run_full_pipeline(
+    session: CommandSession,
+    prompt_for_parameters: bool = False,
+) -> None:
     print("\nStarting guided pipeline...")
 
-    command_export_json(session)
+    command_export_json(session, prompt_for_parameters=prompt_for_parameters)
 
     print("Starting build...")
     command_load(session)
     command_process(session)
-    command_order_limit(session)
-    command_write_order(session)
-    command_assemble(session)
+    command_order_limit(session, prompt_for_parameters=prompt_for_parameters)
+    command_write_order(session, prompt_for_parameters=prompt_for_parameters)
+    command_assemble(session, prompt_for_parameters=prompt_for_parameters)
     command_write(session)
 
     print("Build completed. ✅")
@@ -350,7 +472,10 @@ def run_commander(session: CommandSession) -> None:
     commands = {
         "help": lambda current: show_commander_help(),
         "status": print_status,
-        "pipeline": run_full_pipeline,
+        "pipeline": lambda current: run_full_pipeline(
+            current,
+            prompt_for_parameters=True,
+        ),
         "export_json": command_export_json,
         "load": command_load,
         "process": command_process,
@@ -385,12 +510,19 @@ def run_commander(session: CommandSession) -> None:
 def main() -> None:
     session = CommandSession()
 
+    if prompt_yes_no_menu("Run with last used settings?", default=True):
+        try:
+            run_full_pipeline(session)
+        except Exception as exc:
+            print(f"[ERROR] Pipeline failed: {exc}")
+        return
+
     while True:
         selection = prompt_menu_choice()
 
         if selection == "pipeline":
             try:
-                run_full_pipeline(session)
+                run_full_pipeline(session, prompt_for_parameters=True)
             except Exception as exc:
                 print(f"[ERROR] Pipeline failed: {exc}")
             continue
