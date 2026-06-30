@@ -1,5 +1,4 @@
 import json
-import time
 from pathlib import Path
 
 from core.models import Post
@@ -24,8 +23,22 @@ def load_imported_json(
     if verbose:
         print(f"Loading imported JSON: {input_path}")
 
+    if not input_path.exists():
+        raise FileNotFoundError(f"Imported JSON file not found: {input_path}")
+
+    if input_path.stat().st_size == 0:
+        raise ValueError(
+            f"Imported JSON file is empty: {input_path}. "
+            "Run a fresh export or replace it with valid JSON data."
+        )
+
     with input_path.open("r", encoding="utf-8") as f:
-        payload = json.load(f)
+        try:
+            payload = json.load(f)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"Imported JSON file is not valid JSON: {input_path}"
+            ) from exc
 
     raw_posts = payload.get("posts", [])
     if not isinstance(raw_posts, list):

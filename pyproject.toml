@@ -1,0 +1,11 @@
+[project]
+name = "wordpress-to-obsidian"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "markdownify>=0.11",
+    "pyyaml>=6.0",
+    "requests>=2.31",
+]

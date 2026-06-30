@@ -441,6 +441,7 @@ def command_write(session: CommandSession) -> None:
         session.units,
         format=session.output_format,
         output_dir=session.output_dir,
+        mode=session.mode,
         verbose=True,
     )
     if save_usage_profile(session):

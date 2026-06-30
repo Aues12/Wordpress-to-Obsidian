@@ -21,6 +21,10 @@ class WordPressAPIError(RuntimeError):
     """Raised when a WordPress API request fails."""
 
 
+def _is_placeholder_url(base_url: str) -> bool:
+    return "your-site.com" in base_url
+
+
 # --- Session setup ---
 
 def create_session() -> requests.Session:
@@ -295,9 +299,20 @@ def ensure_json_export(base_url: str, json_path: Path, refresh: bool = False) ->
 
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if json_path.exists() and not refresh:
+    has_cached_json = json_path.exists() and json_path.stat().st_size > 0
+
+    if has_cached_json and not refresh:
         print(f"[INFO] Using existing JSON: {json_path}")
         return
+
+    if _is_placeholder_url(base_url):
+        raise ValueError(
+            "WordPress base URL is still the placeholder value in config.json. "
+            "Set a real site URL before using --refresh or when no cached JSON is available."
+        )
+
+    if json_path.exists() and json_path.stat().st_size == 0:
+        print(f"[WARN] Existing JSON is empty, fetching again: {json_path}")
 
     print(f"[INFO] Fetching fresh data from WordPress: {base_url}")
     export_posts_to_json(
@@ -305,10 +320,9 @@ def ensure_json_export(base_url: str, json_path: Path, refresh: bool = False) ->
         output_file=str(json_path)
     )
 
-
-import time
-
 def main():
+    import time
+
     start_time = time.time()
     print("Starting export...")
 
@@ -324,4 +338,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

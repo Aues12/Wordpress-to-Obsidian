@@ -9,11 +9,11 @@ from assembler import assemble
 from writer import write
 
 import argparse
-from datetime import datetime
 
 config = load_config()
 JSON_PATH = Path(config["paths"]["json_file"])
 BASE_URL = config["wordpress"]["base_url"]
+OUTPUT_DIR = config["paths"].get("output_dir", "output")
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -111,7 +111,7 @@ def main() -> None:
 
     print(f"[INFO] Writing {len(units)} markdown files...")
     print(f"[INFO] Output mode: {args.mode}")
-    write(units, format="md", output_dir="output", verbose=True)
+    write(units, format="md", output_dir=OUTPUT_DIR, mode=args.mode, verbose=True)
 
     print("Build completed. ✅")
 

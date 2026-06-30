@@ -12,6 +12,7 @@ def write(
     units: list[DocumentUnit],
     format: str = "md",
     output_dir: str | Path = DEFAULT_OUTPUT_DIR,
+    mode: str = "per_post",
     verbose: bool = False,
 ) -> None:
     """
@@ -20,7 +21,7 @@ def write(
     For now, only markdown output is supported.
     """
     if format == "md":
-        _write_markdown(units, output_dir=output_dir, verbose=verbose)
+        _write_markdown(units, output_dir=output_dir, verbose=verbose, mode=mode)
         return
 
     raise ValueError(f"Unsupported output format: {format}")
