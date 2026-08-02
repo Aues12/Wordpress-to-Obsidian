@@ -22,6 +22,8 @@ WordPress API → JSON → Process → Assemble → Write
 * Normalize and process content
 * Convert posts into structured objects
 * Export as Markdown files
+* Build output in `per_post` or `book` mode
+* Optional YAML frontmatter generation
 * Modular architecture (easy to extend)
 
 ---
@@ -54,6 +56,8 @@ Wordpress-to-Obsidian/
 
 ## Installation
 
+Requires Python 3.9 or newer.
+
 ### Clone the repository
 
 ```bash
@@ -61,7 +65,7 @@ git clone https://github.com/Aues12/WordPress-to-Obsidian.git
 cd WordPress-to-Obsidian
 ```
 
-### Create virtual environment:
+### Quickstart
 
 (Optional but recommended) Create and activate a virtual environment:
 
@@ -79,6 +83,12 @@ pip install -r requirements.txt
 Dependencies:
 
 * requests
+* PyYAML
+* markdownify
+
+For running tests:
+
+* pytest
 
 ---
 
@@ -95,6 +105,10 @@ export_posts_to_json(
 )
 ```
 
+Use this manual fetch step when you want to generate or refresh `data/imported.json`
+outside the CLI workflow. In normal usage, `python -m cli.main` already checks for the
+JSON file and fetches it automatically when needed, or when you pass `--refresh`.
+
 ---
 
 ### 2. Configure the CLI
@@ -109,6 +123,16 @@ Create/edit the `config.json` file in the project root:
   "paths": {
     "json_file": "data/imported.json",
     "output_dir": "output"
+  },
+  "frontmatter": {
+    "include_frontmatter": false,
+    "fields": [
+      "title",
+      "date",
+      "modified",
+      "slug",
+      "category_names"
+    ]
   }
 }
 ```
@@ -125,16 +149,45 @@ This will:
 
 * Load `config.json`
 * Reuse existing JSON or fetch fresh data from WordPress
-* Load JSON data
+* Load JSON
 * Process posts
 * Assemble output
-* Write Markdown files to `output/`
+* Write Markdown files to the configured output directory
 
 Available CLI options:
 
 * `--refresh` fetches fresh data from WordPress before building
-* `--newest N` builds only the newest `N` posts
-* `--oldest N` builds only the oldest `N` posts
+* `--order {newest,oldest}` controls post selection order before limiting
+* `--write_order {newest,oldest}` controls ordering inside the written output
+* `--limit N` limits the number of posts to build
+* `--mode {per_post,book}` switches between one-file-per-post and combined book output
+* `--frontmatter` includes YAML frontmatter in the assembled output
+
+Examples:
+
+```bash
+# Build the 10 newest posts as individual markdown files
+python -m cli.main --order newest --limit 10 --mode per_post
+
+# Build a single combined book in oldest-to-newest order
+python -m cli.main --order newest --limit 20 --write_order oldest --mode book
+```
+
+---
+
+## Testing
+
+Run the test suite with:
+
+```bash
+python -m pytest
+```
+
+If `pytest` is not installed yet, install it with:
+
+```bash
+pip install pytest
+```
 
 ---
 
@@ -165,9 +218,13 @@ Handles output format (e.g., markdown, docx).
 ## Current Capabilities
 
 * per_post assembly
+* Book assembly
 * Markdown export
 * Turkish-aware slug generation
 * Basic metadata normalization
+* HTML to Markdown conversion
+* Optional YAML frontmatter
+* Config-driven output directory
 
 ---
 
@@ -181,15 +238,10 @@ Handles output format (e.g., markdown, docx).
 ### Assembly
 
 * Corpus mode
-* Book mode
 
 ### Writer
 
-* Frontmatter support
-
-### CLI
-
-* Configurable output directory
+* Additional output formats
 
 ---
 
