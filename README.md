@@ -163,6 +163,7 @@ Available CLI options:
 * `--mode {per_post,book}` switches between one-file-per-post and combined book output
 * `--frontmatter` includes YAML frontmatter in the assembled output
 * `--excerpt` includes each WordPress excerpt before the post content (disabled by default)
+* `--content-format {markdown,html}` converts post and excerpt HTML to Markdown (default), or preserves the imported HTML inside the `.md` output
 
 Cached exports created before excerpt support do not contain this field. Use
 `--refresh --excerpt` once to fetch excerpts from WordPress and rebuild them.
@@ -178,6 +179,9 @@ python -m cli.main --order newest --limit 20 --write_order oldest --mode book
 
 # Build individual files with WordPress excerpts below each title
 python -m cli.main --mode per_post --excerpt
+
+# Preserve imported HTML in Markdown files
+python -m cli.main --content-format html --excerpt
 ```
 
 ---

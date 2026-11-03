@@ -31,6 +31,7 @@ DEFAULT_USAGE_PROFILE = {
     "mode": "per_post",
     "include_frontmatter": DEFAULT_FRONTMATTER,
     "include_excerpt": False,
+    "content_format": "markdown",
     "format": "md",
     "output_dir": OUTPUT_DIR,
 }
@@ -67,6 +68,7 @@ class CommandSession:
     mode: str = USAGE_PROFILE["mode"]
     include_frontmatter: bool = USAGE_PROFILE["include_frontmatter"]
     include_excerpt: bool = USAGE_PROFILE["include_excerpt"]
+    content_format: str = USAGE_PROFILE["content_format"]
     output_format: str = USAGE_PROFILE["format"]
     output_dir: str = USAGE_PROFILE["output_dir"]
 
@@ -80,6 +82,7 @@ def build_usage_profile(session: CommandSession) -> dict:
         "mode": session.mode,
         "include_frontmatter": session.include_frontmatter,
         "include_excerpt": session.include_excerpt,
+        "content_format": session.content_format,
         "format": session.output_format,
         "output_dir": session.output_dir,
     }
@@ -263,6 +266,7 @@ def print_status(session: CommandSession) -> None:
     print(f"  mode: {session.mode}")
     print(f"  include_frontmatter: {frontmatter_label}")
     print(f"  include_excerpt: {excerpt_label}")
+    print(f"  content_format: {session.content_format}")
     print(f"  format: {session.output_format}")
     print(f"  output_dir: {session.output_dir}")
 
@@ -396,6 +400,7 @@ def command_assemble(
     include_frontmatter: bool | None = None,
     include_excerpt: bool | None = None,
     prompt_for_parameters: bool = True,
+    content_format: str | None = None,
 ) -> None:
     if not require_posts(session, "assemble"):
         return
@@ -431,8 +436,16 @@ def command_assemble(
     else:
         excerpt_value = session.include_excerpt
 
-    # assemble() mutates post content when frontmatter is included, so we
-    # assemble a snapshot to keep the session posts reusable across commands.
+    if content_format is not None:
+        content_format_value = content_format
+    elif prompt_for_parameters:
+        content_format_value = prompt_choice(
+            "content format?", choices=["markdown", "html"], default=session.content_format
+        )
+    else:
+        content_format_value = session.content_format
+
+    # Keep the session posts reusable across commands.
     posts_snapshot = deepcopy(session.posts)
     units = assemble(
         posts_snapshot,
@@ -440,12 +453,14 @@ def command_assemble(
         verbose=True,
         include_frontmatter=frontmatter_value,
         include_excerpt=excerpt_value,
+        content_format=content_format_value,
     )
 
     session.units = units
     session.mode = mode_value
     session.include_frontmatter = frontmatter_value
     session.include_excerpt = excerpt_value
+    session.content_format = content_format_value
     print(f"[INFO] Prepared {len(units)} document units.")
 
 

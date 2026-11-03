@@ -10,16 +10,21 @@ def assemble(posts: list[Post],
              verbose: bool = False,
              include_frontmatter: bool = False,
              include_excerpt: bool = False,
+             content_format: str = "markdown",
              ) -> list[DocumentUnit]:
     """
     Assemble processed posts into write-ready document units.
     """
+    if content_format not in {"markdown", "html"}:
+        raise ValueError(f"Unsupported content format: {content_format}")
+
     if mode == "per_post":
         return _assemble_per_post(
             posts,
             verbose=verbose,
             include_frontmatter=include_frontmatter,
             include_excerpt=include_excerpt,
+            content_format=content_format,
         )
 
     if mode == "book":
@@ -28,6 +33,7 @@ def assemble(posts: list[Post],
              verbose=verbose,
              include_frontmatter=include_frontmatter,
              include_excerpt=include_excerpt,
+             content_format=content_format,
          )
 
     raise ValueError(f"Unsupported assembly mode: {mode}")
@@ -41,23 +47,22 @@ def _process_frontmatter(data: dict) -> str:
 def _process_content(
     post: Post,
     include_excerpt: bool = False,
-    prefix: str = "",
+    content_format: str = "markdown",
 ) -> str:
-    content = markdownify(f"{prefix}{post.content}")
-    if not include_excerpt or not post.excerpt:
-        return content
-
-    excerpt = markdownify(post.excerpt).strip()
-    if not excerpt:
-        return content
-
-    return f"{excerpt}\n\n{content}"
+    convert = markdownify if content_format == "markdown" else lambda value: value
+    content = convert(post.content)
+    if include_excerpt and post.excerpt:
+        excerpt = convert(post.excerpt).strip()
+        if excerpt:
+            return f"{excerpt}\n\n{content}"
+    return content
 
 
 def _assemble_per_post(posts: list[Post],
                        verbose: bool = False,
                        include_frontmatter: bool = False,
                        include_excerpt: bool = False,
+                       content_format: str = "markdown",
                        ) -> list[DocumentUnit]:
     """
     Convert each post into its own DocumentUnit.
@@ -72,7 +77,7 @@ def _assemble_per_post(posts: list[Post],
         unit = DocumentUnit(
             filename=filename,
             title=post.title,
-            content=_process_content(post, include_excerpt=include_excerpt),
+            content=_process_content(post, include_excerpt=include_excerpt, content_format=content_format),
             frontmatter=frontmatter_str if include_frontmatter else "",
             meta = {
                     **post.meta,
@@ -92,6 +97,7 @@ def _assemble_book(posts: list[Post],
                    filename: str = "book.md",
                    include_frontmatter: bool = False,
                    include_excerpt: bool = False,
+                   content_format: str = "markdown",
                    ) -> list[DocumentUnit]:
     """
     Convert all posts into a single DocumentUnit.
@@ -108,10 +114,10 @@ def _assemble_book(posts: list[Post],
         content = _process_content(
             post,
             include_excerpt=include_excerpt,
-            prefix=frontmatter_prefix,
+            content_format=content_format,
         )
         title = post.title
-        book_content.append(f"# {title}\n\n{content}")
+        book_content.append(f"# {title}\n\n{frontmatter_prefix}{content}")
 
     if verbose:
             print(f"Assembled: {filename}")

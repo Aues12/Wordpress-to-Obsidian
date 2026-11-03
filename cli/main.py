@@ -65,6 +65,11 @@ def parse_args(argv: list[str] | None = None):
     )
 
 
+    parser.add_argument(
+        "--content-format", choices=["markdown", "html"], default="markdown",
+        help="Format post and excerpt content (default: markdown)"
+    )
+
     return parser.parse_args(argv)
 
 
@@ -115,6 +120,7 @@ def main() -> None:
                      include_frontmatter=args.frontmatter if args.frontmatter 
                      else config["frontmatter"]["include_frontmatter"],
                      include_excerpt=args.excerpt,
+                     content_format=args.content_format,
                      )
 
     print(f"[INFO] Writing {len(units)} markdown files...")
