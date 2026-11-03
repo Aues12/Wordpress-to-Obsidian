@@ -15,7 +15,7 @@ JSON_PATH = Path(config["paths"]["json_file"])
 BASE_URL = config["wordpress"]["base_url"]
 OUTPUT_DIR = config["paths"].get("output_dir", "output")
 
-def parse_args():
+def parse_args(argv: list[str] | None = None):
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -57,8 +57,15 @@ def parse_args():
         help="Include frontmatter"
     )
 
+    parser.add_argument(
+        "--excerpt",
+        action="store_true",
+        default=False,
+        help="Include the WordPress excerpt before post content"
+    )
 
-    return parser.parse_args()
+
+    return parser.parse_args(argv)
 
 
 def order_and_limit_posts(posts, order: str = "newest", limit: int | None = None):
@@ -106,12 +113,19 @@ def main() -> None:
                      mode=args.mode, 
                      verbose=True, 
                      include_frontmatter=args.frontmatter if args.frontmatter 
-                     else config["frontmatter"]["include_frontmatter"]
+                     else config["frontmatter"]["include_frontmatter"],
+                     include_excerpt=args.excerpt,
                      )
 
     print(f"[INFO] Writing {len(units)} markdown files...")
     print(f"[INFO] Output mode: {args.mode}")
-    write(units, format="md", output_dir=OUTPUT_DIR, mode=args.mode, verbose=True)
+    write(
+        units,
+        format="md",
+        output_dir=OUTPUT_DIR,
+        verbose=True,
+        mode=args.mode,
+    )
 
     print("Build completed. ✅")
 

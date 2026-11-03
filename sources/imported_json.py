@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -36,9 +38,7 @@ def load_imported_json(
         try:
             payload = json.load(f)
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"Imported JSON file is not valid JSON: {input_path}"
-            ) from exc
+            raise ValueError(f"Imported JSON file is not valid JSON: {input_path}") from exc
 
     raw_posts = payload.get("posts", [])
     if not isinstance(raw_posts, list):
@@ -50,6 +50,7 @@ def load_imported_json(
         post = Post(
             title=item.get("title", "") or "",
             content=item.get("content", "") or "",
+            excerpt=item.get("excerpt", "") or "",
             date=item.get("date"),
             slug=item.get("slug"),
             meta={

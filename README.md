@@ -162,6 +162,10 @@ Available CLI options:
 * `--limit N` limits the number of posts to build
 * `--mode {per_post,book}` switches between one-file-per-post and combined book output
 * `--frontmatter` includes YAML frontmatter in the assembled output
+* `--excerpt` includes each WordPress excerpt before the post content (disabled by default)
+
+Cached exports created before excerpt support do not contain this field. Use
+`--refresh --excerpt` once to fetch excerpts from WordPress and rebuild them.
 
 Examples:
 
@@ -171,6 +175,9 @@ python -m cli.main --order newest --limit 10 --mode per_post
 
 # Build a single combined book in oldest-to-newest order
 python -m cli.main --order newest --limit 20 --write_order oldest --mode book
+
+# Build individual files with WordPress excerpts below each title
+python -m cli.main --mode per_post --excerpt
 ```
 
 ---

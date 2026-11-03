@@ -178,6 +178,7 @@ def normalize_post(
         "link": post.get("link"),
         "title": clean_text((post.get("title") or {}).get("rendered", "")),
         "content": clean_text((post.get("content") or {}).get("rendered", "")),
+        "excerpt": clean_text((post.get("excerpt") or {}).get("rendered", "")),
         "categories": category_ids,
         "category_names": category_names
             }
@@ -300,7 +301,6 @@ def ensure_json_export(base_url: str, json_path: Path, refresh: bool = False) ->
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
     has_cached_json = json_path.exists() and json_path.stat().st_size > 0
-
     if has_cached_json and not refresh:
         print(f"[INFO] Using existing JSON: {json_path}")
         return
@@ -320,9 +320,10 @@ def ensure_json_export(base_url: str, json_path: Path, refresh: bool = False) ->
         output_file=str(json_path)
     )
 
-def main():
-    import time
 
+import time
+
+def main():
     start_time = time.time()
     print("Starting export...")
 

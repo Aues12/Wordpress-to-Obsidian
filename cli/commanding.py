@@ -30,6 +30,7 @@ DEFAULT_USAGE_PROFILE = {
     "write_order": "oldest",
     "mode": "per_post",
     "include_frontmatter": DEFAULT_FRONTMATTER,
+    "include_excerpt": False,
     "format": "md",
     "output_dir": OUTPUT_DIR,
 }
@@ -65,6 +66,7 @@ class CommandSession:
     write_order_value: str = USAGE_PROFILE["write_order"]
     mode: str = USAGE_PROFILE["mode"]
     include_frontmatter: bool = USAGE_PROFILE["include_frontmatter"]
+    include_excerpt: bool = USAGE_PROFILE["include_excerpt"]
     output_format: str = USAGE_PROFILE["format"]
     output_dir: str = USAGE_PROFILE["output_dir"]
 
@@ -77,6 +79,7 @@ def build_usage_profile(session: CommandSession) -> dict:
         "write_order": session.write_order_value,
         "mode": session.mode,
         "include_frontmatter": session.include_frontmatter,
+        "include_excerpt": session.include_excerpt,
         "format": session.output_format,
         "output_dir": session.output_dir,
     }
@@ -249,6 +252,7 @@ def print_status(session: CommandSession) -> None:
     units_label = "none" if session.units is None else str(len(session.units))
     limit_label = "all" if session.limit is None else str(session.limit)
     frontmatter_label = "yes" if session.include_frontmatter else "no"
+    excerpt_label = "yes" if session.include_excerpt else "no"
 
     print("\nSession status:")
     print(f"  posts: {posts_label}")
@@ -258,6 +262,7 @@ def print_status(session: CommandSession) -> None:
     print(f"  write_order: {session.write_order_value}")
     print(f"  mode: {session.mode}")
     print(f"  include_frontmatter: {frontmatter_label}")
+    print(f"  include_excerpt: {excerpt_label}")
     print(f"  format: {session.output_format}")
     print(f"  output_dir: {session.output_dir}")
 
@@ -389,6 +394,7 @@ def command_assemble(
     session: CommandSession,
     mode: str | None = None,
     include_frontmatter: bool | None = None,
+    include_excerpt: bool | None = None,
     prompt_for_parameters: bool = True,
 ) -> None:
     if not require_posts(session, "assemble"):
@@ -415,6 +421,16 @@ def command_assemble(
     else:
         frontmatter_value = session.include_frontmatter
 
+    if include_excerpt is not None:
+        excerpt_value = include_excerpt
+    elif prompt_for_parameters:
+        excerpt_value = prompt_yes_no(
+            "include excerpt?",
+            default=session.include_excerpt,
+        )
+    else:
+        excerpt_value = session.include_excerpt
+
     # assemble() mutates post content when frontmatter is included, so we
     # assemble a snapshot to keep the session posts reusable across commands.
     posts_snapshot = deepcopy(session.posts)
@@ -423,11 +439,13 @@ def command_assemble(
         mode=mode_value,
         verbose=True,
         include_frontmatter=frontmatter_value,
+        include_excerpt=excerpt_value,
     )
 
     session.units = units
     session.mode = mode_value
     session.include_frontmatter = frontmatter_value
+    session.include_excerpt = excerpt_value
     print(f"[INFO] Prepared {len(units)} document units.")
 
 
@@ -441,7 +459,6 @@ def command_write(session: CommandSession) -> None:
         session.units,
         format=session.output_format,
         output_dir=session.output_dir,
-        mode=session.mode,
         verbose=True,
     )
     if save_usage_profile(session):

@@ -13,6 +13,7 @@ class Post:
     """
     title: str = ""
     content: str = ""
+    excerpt: str = ""
     date: Optional[str] = None
     slug: Optional[str] = None
 
@@ -34,5 +35,15 @@ class DocumentUnit:
     filename: str
     content: str
 
+    frontmatter: str = ""
     title: str = ""
     meta: dict[str, Any] = field(default_factory=dict)
+
+
+class Link:
+    def __init__(self, target, link_type, confidence=1.0, source="parser", reason=None):
+        self.target = target            # slug / id
+        self.link_type = link_type      # "hard" | "soft"
+        self.confidence = confidence    # 0–1
+        self.source = source            # "parser" | "llm"
+        self.reason = reason            # kısa açıklama (soft için)

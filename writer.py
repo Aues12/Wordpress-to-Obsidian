@@ -12,8 +12,8 @@ def write(
     units: list[DocumentUnit],
     format: str = "md",
     output_dir: str | Path = DEFAULT_OUTPUT_DIR,
-    mode: str = "per_post",
     verbose: bool = False,
+    mode: str = "per_post",
 ) -> None:
     """
     Write document units to disk.
@@ -46,7 +46,7 @@ def _write_markdown(
             content = unit.content
 
             if unit.title:
-                content = f"# {unit.title}\n\n{content}"
+                content = f"{unit.frontmatter}\n# {unit.title}\n\n{content}"
             
             file_path.write_text(content, encoding="utf-8")
 
